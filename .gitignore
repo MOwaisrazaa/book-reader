@@ -1,0 +1,55 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Images (large files)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Project specific
+.expo/
+web-build/
+.metro-health-check*

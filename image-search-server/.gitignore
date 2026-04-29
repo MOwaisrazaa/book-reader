@@ -1,0 +1,51 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+embeddings.db
+
+# Images (large files - don't upload to GitHub)
+images/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build outputs
+dist/
+build/
