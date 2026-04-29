@@ -1,13 +1,14 @@
-import React, { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, TextInput, Modal, FlatList, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BookReader from './components/BookReader';
+import ImageSearch from './components/ImageSearch';
 import searchIndex from './assets/searchIndex.json';
 
 export default function App() {
   const [isReaderOpen, setIsReaderOpen] = useState(false);
-  
+  const [showImageSearch, setShowImageSearch] = useState(false);
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedPage, setSelectedPage] = useState(0);
   const [highlightText, setHighlightText] = useState('');
@@ -66,6 +67,14 @@ export default function App() {
     Keyboard.dismiss();
   };
 
+  const handleImageSearchSelect = (pageNumber) => {
+    setSelectedBook('sham-e-shabistan-e-raza');
+    setSelectedPage(pageNumber - 1);
+    setHighlightText('');
+    setIsReaderOpen(true);
+    setShowImageSearch(false);
+  };
+
   const getSnippet = (text, query) => {
     const idx = text.toLowerCase().indexOf(query.toLowerCase());
     if (idx === -1) return text.slice(0, 80);
@@ -76,12 +85,12 @@ export default function App() {
 
   const renderHighlightedText = (text, query) => {
     if (!query.trim()) return text;
-    
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
     const textParts = text.split(regex);
     
     return textParts.map((part, index) => {
-      if (part.toLowerCase() === query.toLowerCase()) {
+      if (part && part.toLowerCase() === query.toLowerCase()) {
         return (
           <Text key={index} style={{ backgroundColor: '#FFFF00', fontWeight: 'bold' }}>
             {part}
@@ -93,10 +102,9 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#1B5E20" />
       
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Ionicons name="book" size={32} color="#fff" />
@@ -105,7 +113,6 @@ export default function App() {
         <Text style={styles.headerSubtitle}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</Text>
       </View>
 
-      {/* Search Bar Section */}
       <View style={styles.searchBarContainer}>
         <TouchableOpacity 
           style={styles.searchButton}
@@ -116,23 +123,19 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Welcome!</Text>
           <Text style={styles.welcomeSubtext}>Start your spiritual journey with Islamic literature</Text>
         </View>
 
-        {/* Books Library Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="library" size={24} color="#2E7D32" />
             <Text style={styles.sectionTitle}>My Library</Text>
           </View>
           
-          {/* Books Collection Folder */}
           <TouchableOpacity 
             style={styles.booksFolder}
             onPress={() => openBook('sham-e-shabistan-e-raza')}
@@ -143,7 +146,6 @@ export default function App() {
             <Text style={styles.folderTitle}>Books Collection</Text>
             <Text style={styles.folderSubtitle}>Tap to read your Islamic books</Text>
             
-            {/* Available Books */}
             <View style={styles.booksList}>
               <TouchableOpacity 
                 style={styles.bookItem}
@@ -157,10 +159,17 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => setShowImageSearch(true)}
+            >
+              <Ionicons name="image" size={24} color="#2E7D32" />
+              <Text style={styles.actionText}>Image Search</Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity style={styles.actionCard}>
               <Ionicons name="bookmark" size={24} color="#2E7D32" />
               <Text style={styles.actionText}>Bookmarks</Text>
@@ -175,12 +184,9 @@ export default function App() {
               <Ionicons name="settings" size={24} color="#2E7D32" />
               <Text style={styles.actionText}>Settings</Text>
             </TouchableOpacity>
-
-            
           </View>
         </View>
 
-        {/* Islamic Quote */}
         <View style={styles.quoteSection}>
           <Text style={styles.quoteArabic}>وَقُل رَّبِّ زِدْنِي عِلْمًا</Text>
           <Text style={styles.quoteTranslation}>"And say: My Lord, increase me in knowledge"</Text>
@@ -189,7 +195,6 @@ export default function App() {
 
       </ScrollView>
 
-      {/* Book Reader Modal */}
       <BookReader 
         visible={isReaderOpen}
         onClose={closeReader}
@@ -198,9 +203,6 @@ export default function App() {
         highlightText={highlightText}
       />
 
-      
-
-      {/* Search Modal */}
       <Modal
         visible={showSearchModal}
         transparent={true}
@@ -212,7 +214,6 @@ export default function App() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.searchContainer}>
-            {/* Search Header */}
             <View style={styles.searchHeader}>
               <View style={styles.searchInputWrapper}>
                 <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
@@ -237,7 +238,6 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Results count */}
             {searchText.trim().length > 0 && (
               <Text style={styles.resultsCount}>
                 {searchResults.length === 0
@@ -246,7 +246,6 @@ export default function App() {
               </Text>
             )}
 
-            {/* Results List */}
             <FlatList
               data={searchResults}
               keyExtractor={(item) => String(item.page)}
@@ -280,7 +279,13 @@ export default function App() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+
+      <ImageSearch 
+        visible={showImageSearch}
+        onClose={() => setShowImageSearch(false)}
+        onSelectPage={handleImageSearchSelect}
+      />
+    </View>
   );
 }
 
@@ -288,6 +293,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    paddingTop: 40,
   },
   header: {
     backgroundColor: '#1B5E20',
