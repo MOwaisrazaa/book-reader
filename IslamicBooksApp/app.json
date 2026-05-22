@@ -14,15 +14,26 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
+      "android": {
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/adaptive-icon.png",
+          "backgroundColor": "#ffffff"
+        },
+        "package": "com.islamicbooksapp",
+        "softwareKeyboardLayoutMode": "pan",
+        "permissions": [
+          "CAMERA"
+        ]
+      },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "expo-dev-client",
+      "expo-image-picker"
+    ],
+    "experiments": {
+      "newArchEnabled": false
+    }
   }
 }

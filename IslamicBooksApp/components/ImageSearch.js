@@ -1,193 +1,245 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  Modal,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  FlatList,
-  Alert,
-  ScrollView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { searchSimilarImages, getEmbeddingStats, checkServerHealth } from '../utils/imageSearch';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Ionicons } from '@expo/vector-icons';
+import { averageHashFromBase64Png, getImageSearchStatus, searchImageHashes } from '../utils/imageSearchEngine';
+
+const PRESETS = [
+  { key: 'full', label: 'Full Page' },
+  { key: 'center', label: 'Center' },
+  { key: 'top', label: 'Top' },
+  { key: 'bottom', label: 'Bottom' },
+  { key: 'text', label: 'Text Area' },
+];
+
+function clampRect(rect, imageWidth, imageHeight) {
+  const originX = Math.max(0, Math.min(imageWidth - 1, Math.round(rect.originX)));
+  const originY = Math.max(0, Math.min(imageHeight - 1, Math.round(rect.originY)));
+  const width = Math.max(16, Math.min(imageWidth - originX, Math.round(rect.width)));
+  const height = Math.max(16, Math.min(imageHeight - originY, Math.round(rect.height)));
+  return { originX, originY, width, height };
+}
+
+function presetRect(preset, width, height) {
+  if (preset === 'top') return { originX: 0, originY: 0, width, height: height * 0.42 };
+  if (preset === 'bottom') return { originX: 0, originY: height * 0.58, width, height: height * 0.42 };
+  if (preset === 'center') return { originX: width * 0.12, originY: height * 0.25, width: width * 0.76, height: height * 0.50 };
+  if (preset === 'text') return { originX: width * 0.08, originY: height * 0.10, width: width * 0.84, height: height * 0.82 };
+  return { originX: 0, originY: 0, width, height };
+}
+
+function secondaryRects(width, height) {
+  return [
+    { originX: 0, originY: 0, width, height },
+    { originX: width * 0.10, originY: height * 0.10, width: width * 0.80, height: height * 0.80 },
+    { originX: 0, originY: 0, width, height: height * 0.50 },
+    { originX: 0, originY: height * 0.50, width, height: height * 0.50 },
+    { originX: width * 0.15, originY: height * 0.25, width: width * 0.70, height: height * 0.45 },
+  ];
+}
+
+async function makeHash(uri, cropRect) {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [
+      { crop: cropRect },
+      { resize: { width: 256, height: 256 } },
+    ],
+    {
+      base64: true,
+      compress: 1,
+      format: ImageManipulator.SaveFormat.PNG,
+    }
+  );
+
+  return averageHashFromBase64Png(result.base64);
+}
 
 export default function ImageSearch({ visible, onClose, onSelectPage }) {
-  const [searching, setSearching] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [serverOnline, setServerOnline] = useState(false);
+  const [activePreset, setActivePreset] = useState('full');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState('');
 
-  useEffect(() => {
-    if (visible) {
-      checkServer();
-      if (!stats) {
-        getEmbeddingStats().then(setStats);
-      }
+  const status = useMemo(() => getImageSearchStatus(results), [results]);
+
+  const pickImage = async (source) => {
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Image search needs permission to read/capture an image.');
+      return;
     }
-  }, [visible, stats]);
 
-  const checkServer = async () => {
-    const isOnline = await checkServerHealth();
-    setServerOnline(isOnline);
-    if (!isOnline) {
-      Alert.alert(
-        'Server Offline',
-        'Image search server is not running. Please start the server first.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+    const response = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
+        quality: 1,
+      })
+      : await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
       });
 
-      if (!result.canceled) {
-        const uri = result.assets[0].uri;
-        setSelectedImage(uri);
-        await performSearch(uri);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image: ' + error.message);
-    }
+    if (response.canceled || !response.assets?.[0]) return;
+
+    setSelectedImage(response.assets[0]);
+    setResults([]);
+    setStatusText('Image selected. Choose a preset, then press Search.');
   };
 
-  const performSearch = async (imageUri) => {
-    if (!serverOnline) {
-      Alert.alert('Error', 'Server is offline. Please start the server.');
+  const runSearch = async () => {
+    if (!selectedImage?.uri) {
+      Alert.alert('Select image', 'Pehle gallery ya camera se image select karein.');
       return;
     }
 
     try {
-      setSearching(true);
-      setSearchResults([]);
-      const results = await searchSimilarImages(imageUri, 5);
-      setSearchResults(results);
+      setLoading(true);
+      setStatusText('Preparing offline visual fingerprints...');
+
+      const baseRect = clampRect(
+        presetRect(activePreset, selectedImage.width, selectedImage.height),
+        selectedImage.width,
+        selectedImage.height
+      );
+      const queryHashes = [];
+      queryHashes.push(await makeHash(selectedImage.uri, baseRect));
+
+      for (const rect of secondaryRects(baseRect.width, baseRect.height)) {
+        const nested = clampRect({
+          originX: baseRect.originX + rect.originX,
+          originY: baseRect.originY + rect.originY,
+          width: rect.width,
+          height: rect.height,
+        }, selectedImage.width, selectedImage.height);
+        queryHashes.push(await makeHash(selectedImage.uri, nested));
+      }
+
+      const uniqueHashes = Array.from(new Set(queryHashes));
+      const matches = searchImageHashes(uniqueHashes, 8);
+      setResults(matches);
+      setStatusText(getImageSearchStatus(matches).message);
     } catch (error) {
-      console.error('Search error:', error);
-      Alert.alert('Error', 'Search failed: ' + error.message);
+      console.error('[ImageSearch] Search failed:', error);
+      Alert.alert('Image search error', error.message || 'Image search failed.');
+      setStatusText('Search failed. Try another image or crop.');
     } finally {
-      setSearching(false);
+      setLoading(false);
     }
   };
 
-  const handleSelectResult = (pageId) => {
-    onSelectPage(pageId);
+  const openPage = (result) => {
+    if (!result.usable) {
+      Alert.alert('Low confidence', 'Exact page confidently nahi mili. Clear full page ya tighter crop try karein.');
+      return;
+    }
+
+    onSelectPage(result.page);
     onClose();
   };
 
-  const renderSearchResult = ({ item }) => (
-    <TouchableOpacity
-      style={styles.resultItem}
-      onPress={() => handleSelectResult(item.pageId)}
-    >
-      <View style={styles.resultContent}>
-        <Text style={styles.resultPage}>Page {item.pageId}</Text>
-        <Text style={styles.resultSimilarity}>
-          Match: {(item.similarity * 100).toFixed(1)}%
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={24} color="#1B5E20" />
-    </TouchableOpacity>
-  );
-
-  if (!visible) return null;
-
   return (
-    <Modal visible={visible} animationType="slide" transparent={false}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Ionicons name="close" size={26} color="#fff" />
+            <Ionicons name="close" size={26} color="#F8D889" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Image Search</Text>
-          <View style={styles.headerButton} />
+          <View>
+            <Text style={styles.headerTitle}>Image Search</Text>
+            <Text style={styles.headerSubtitle}>Offline page & crop matching</Text>
+          </View>
+          <View style={styles.headerButton}>
+            <Ionicons name="image" size={24} color="#F8D889" />
+          </View>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {!serverOnline && (
-            <View style={styles.warningCard}>
-              <Ionicons name="warning" size={24} color="#E65100" />
-              <Text style={styles.warningText}>Server is offline</Text>
-              <Text style={styles.warningSubtext}>Start the Node.js server to use image search</Text>
-            </View>
-          )}
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.infoCard}>
+            <Ionicons name="shield-checkmark" size={22} color="#F8D889" />
+            <Text style={styles.infoText}>
+              Ye feature internet ke baghair local page/tile fingerprints se match karta hai. Clear screenshot/crop par best result milta hai.
+            </Text>
+          </View>
 
-          {stats && (
-            <View style={styles.statsCard}>
-              <Text style={styles.statsTitle}>Search Index</Text>
-              <Text style={styles.statsText}>📚 {stats.totalEmbeddings} pages indexed</Text>
-              <Text style={styles.statsText}>🧠 {stats.model}</Text>
-              <Text style={styles.statsText}>📊 Dimension: {stats.embeddingDimension}</Text>
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Image</Text>
-            <TouchableOpacity
-              style={[styles.uploadButton, !serverOnline && styles.uploadButtonDisabled]}
-              onPress={pickImage}
-              disabled={searching || !serverOnline}
-            >
-              <Ionicons name="image" size={40} color={serverOnline ? '#1B5E20' : '#ccc'} />
-              <Text style={[styles.uploadButtonText, !serverOnline && styles.uploadButtonTextDisabled]}>
-                {selectedImage ? 'Change Image' : 'Pick from Gallery'}
-              </Text>
+          <View style={styles.sourceRow}>
+            <TouchableOpacity style={styles.sourceButton} onPress={() => pickImage('gallery')}>
+              <Ionicons name="images" size={22} color="#0D3B2E" />
+              <Text style={styles.sourceText}>Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sourceButton} onPress={() => pickImage('camera')}>
+              <Ionicons name="camera" size={22} color="#0D3B2E" />
+              <Text style={styles.sourceText}>Camera</Text>
             </TouchableOpacity>
           </View>
 
           {selectedImage && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Selected Image</Text>
-              <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+            <View style={styles.previewCard}>
+              <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} resizeMode="contain" />
+              <Text style={styles.previewText}>Selected image</Text>
             </View>
           )}
 
-          {searching && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#1B5E20" />
-              <Text style={styles.loadingText}>Searching similar pages...</Text>
+          <Text style={styles.sectionTitle}>Match Area</Text>
+          <View style={styles.presetRow}>
+            {PRESETS.map((preset) => (
+              <TouchableOpacity
+                key={preset.key}
+                style={[styles.presetChip, activePreset === preset.key && styles.presetChipActive]}
+                onPress={() => setActivePreset(preset.key)}
+              >
+                <Text style={[styles.presetText, activePreset === preset.key && styles.presetTextActive]}>
+                  {preset.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={[styles.searchButton, loading && styles.searchButtonDisabled]} onPress={runSearch} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#0D3B2E" />
+            ) : (
+              <>
+                <Ionicons name="scan" size={22} color="#0D3B2E" />
+                <Text style={styles.searchText}>Search Exact Page</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {!!statusText && (
+            <View style={[styles.statusCard, !status.confident && results.length > 0 && styles.statusWarning]}>
+              <Text style={styles.statusText}>{statusText}</Text>
             </View>
           )}
 
-          {searchResults.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Similar Pages ({searchResults.length})</Text>
-              <FlatList
-                data={searchResults}
-                renderItem={renderSearchResult}
-                keyExtractor={(item) => item.pageId.toString()}
-                scrollEnabled={false}
-              />
-            </View>
-          )}
-
-          {!searching && selectedImage && searchResults.length === 0 && (
-            <View style={styles.emptyState}>
-              <Ionicons name="search" size={48} color="#ccc" />
-              <Text style={styles.emptyStateText}>No similar pages found</Text>
-            </View>
-          )}
-
-          {!selectedImage && (
-            <View style={styles.instructionsCard}>
-              <Text style={styles.instructionsTitle}>How it works</Text>
-              <Text style={styles.instructionsText}>
-                1. Select an image from your gallery{'\n'}
-                2. Server generates vector embedding{'\n'}
-                3. Finds similar pages in database{'\n'}
-                4. Tap a result to view that page
-              </Text>
+          {results.length > 0 && (
+            <View style={styles.resultsBlock}>
+              <Text style={styles.sectionTitle}>Results</Text>
+              {results.map((result, index) => (
+                <TouchableOpacity
+                  key={`${result.page}-${index}`}
+                  style={[styles.resultCard, !result.usable && styles.resultWeak]}
+                  onPress={() => openPage(result)}
+                >
+                  <View style={styles.resultBadge}>
+                    <Text style={styles.resultRank}>#{index + 1}</Text>
+                  </View>
+                  <View style={styles.resultBody}>
+                    <Text style={styles.resultTitle}>Page {result.page}</Text>
+                    <Text style={styles.resultMeta}>
+                      Confidence {result.confidence}% • distance {result.distance} • {result.reason}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={22} color="#B78A2F" />
+                </TouchableOpacity>
+              ))}
             </View>
           )}
         </ScrollView>
@@ -197,76 +249,201 @@ export default function ImageSearch({ visible, onClose, onSelectPage }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F0E6',
+  },
   header: {
+    backgroundColor: '#071B14',
+    paddingTop: 48,
+    paddingBottom: 18,
+    paddingHorizontal: 18,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1B5E20',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 40,
   },
-  headerButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  content: { flex: 1, padding: 16 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 12 },
-  warningCard: {
-    backgroundColor: '#FFF3E0',
-    borderRadius: 12,
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(248,216,137,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    color: '#D7C8A1',
+    fontSize: 12,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  content: {
+    padding: 18,
+    paddingBottom: 38,
+  },
+  infoCard: {
+    backgroundColor: '#0D3B2E',
+    borderRadius: 22,
     padding: 16,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E65100',
-    alignItems: 'center',
-  },
-  warningText: { fontSize: 14, fontWeight: '600', color: '#E65100', marginTop: 8 },
-  warningSubtext: { fontSize: 12, color: '#BF360C', marginTop: 4 },
-  statsCard: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1B5E20',
-  },
-  statsTitle: { fontSize: 14, fontWeight: '600', color: '#1B5E20', marginBottom: 8 },
-  statsText: { fontSize: 13, color: '#2E7D32', marginVertical: 4 },
-  uploadButton: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
-  },
-  uploadButtonDisabled: {
-    opacity: 0.5,
-  },
-  uploadButtonText: { fontSize: 14, fontWeight: '600', color: '#1B5E20', marginTop: 12 },
-  uploadButtonTextDisabled: { color: '#ccc' },
-  previewImage: { width: '100%', height: 300, borderRadius: 12, backgroundColor: '#e0e0e0' },
-  loadingContainer: { alignItems: 'center', paddingVertical: 40 },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#666' },
-  resultItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  infoText: {
+    flex: 1,
+    color: '#F5E8C8',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sourceButton: {
+    flex: 1,
+    backgroundColor: '#F8D889',
+    borderRadius: 18,
+    paddingVertical: 15,
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sourceText: {
+    color: '#0D3B2E',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  previewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1B5E20',
+    marginTop: 16,
+    elevation: 3,
   },
-  resultContent: { flex: 1 },
-  resultPage: { fontSize: 14, fontWeight: '600', color: '#333' },
-  resultSimilarity: { fontSize: 12, color: '#666', marginTop: 4 },
-  emptyState: { alignItems: 'center', paddingVertical: 40 },
-  emptyStateText: { fontSize: 14, color: '#999', marginTop: 12 },
-  instructionsCard: { backgroundColor: '#FFF3E0', borderRadius: 12, padding: 16, marginBottom: 24 },
-  instructionsTitle: { fontSize: 14, fontWeight: '600', color: '#E65100', marginBottom: 8 },
-  instructionsText: { fontSize: 13, color: '#BF360C', lineHeight: 20 },
+  previewImage: {
+    width: '100%',
+    height: 260,
+    borderRadius: 18,
+    backgroundColor: '#E8E1D4',
+  },
+  previewText: {
+    color: '#6B5D45',
+    textAlign: 'center',
+    marginTop: 8,
+    fontSize: 12,
+  },
+  sectionTitle: {
+    color: '#16251E',
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  presetChip: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2D6BF',
+  },
+  presetChipActive: {
+    backgroundColor: '#0D3B2E',
+    borderColor: '#0D3B2E',
+  },
+  presetText: {
+    color: '#62553F',
+    fontWeight: '700',
+  },
+  presetTextActive: {
+    color: '#F8D889',
+  },
+  searchButton: {
+    marginTop: 18,
+    backgroundColor: '#F8D889',
+    borderRadius: 20,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  searchButtonDisabled: {
+    opacity: 0.65,
+  },
+  searchText: {
+    color: '#0D3B2E',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  statusCard: {
+    backgroundColor: '#E5F2EA',
+    borderRadius: 16,
+    padding: 13,
+    marginTop: 14,
+  },
+  statusWarning: {
+    backgroundColor: '#FFF2D6',
+  },
+  statusText: {
+    color: '#233A2E',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  resultsBlock: {
+    marginTop: 4,
+  },
+  resultCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderLeftWidth: 5,
+    borderLeftColor: '#0D3B2E',
+    elevation: 2,
+  },
+  resultWeak: {
+    opacity: 0.72,
+    borderLeftColor: '#B78A2F',
+  },
+  resultBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#0D3B2E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  resultRank: {
+    color: '#F8D889',
+    fontWeight: '900',
+  },
+  resultBody: {
+    flex: 1,
+  },
+  resultTitle: {
+    color: '#1D1D1D',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  resultMeta: {
+    color: '#746B5B',
+    marginTop: 4,
+    fontSize: 12,
+  },
 });

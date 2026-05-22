@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+﻿import { useState, useRef, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,12 +8,12 @@ import searchIndex from './assets/searchIndex.json';
 
 export default function App() {
   const [isReaderOpen, setIsReaderOpen] = useState(false);
-  const [showImageSearch, setShowImageSearch] = useState(false);
   const [selectedBook, setSelectedBook] = useState('');
   const [selectedPage, setSelectedPage] = useState(0);
   const [highlightText, setHighlightText] = useState('');
   const [searchText, setSearchText] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showImageSearchModal, setShowImageSearchModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const searchInputRef = useRef(null);
 
@@ -57,7 +57,6 @@ export default function App() {
 
   const openSearch = () => {
     setShowSearchModal(true);
-    setTimeout(() => searchInputRef.current?.focus(), 100);
   };
 
   const closeSearch = () => {
@@ -67,12 +66,12 @@ export default function App() {
     Keyboard.dismiss();
   };
 
-  const handleImageSearchSelect = (pageNumber) => {
+  const goToImageSearchPage = (pageNumber) => {
     setSelectedBook('sham-e-shabistan-e-raza');
     setSelectedPage(pageNumber - 1);
     setHighlightText('');
     setIsReaderOpen(true);
-    setShowImageSearch(false);
+    setShowImageSearchModal(false);
   };
 
   const getSnippet = (text, query) => {
@@ -103,14 +102,21 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#1B5E20" />
+      <StatusBar style="light" backgroundColor="#071B14" />
       
       <View style={styles.header}>
+        <View style={styles.headerGlow} />
         <View style={styles.headerContent}>
-          <Ionicons name="book" size={32} color="#fff" />
-          <Text style={styles.headerTitle}>Islamic Books</Text>
+          <View style={styles.logoMark}>
+            <Ionicons name="book" size={28} color="#F8D889" />
+          </View>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.headerEyebrow}>Digital Library</Text>
+            <Text style={styles.headerTitle}>Islamic Books</Text>
+          </View>
         </View>
-        <Text style={styles.headerSubtitle}>بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</Text>
+        <Text style={styles.headerSubtitle}>بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيم</Text>
+        <Text style={styles.headerCaption}>Read, search, and continue your Islamic study offline.</Text>
       </View>
 
       <View style={styles.searchBarContainer}>
@@ -118,21 +124,32 @@ export default function App() {
           style={styles.searchButton}
           onPress={openSearch}
         >
-          <Ionicons name="search" size={20} color="#666" />
-          <Text style={styles.searchPlaceholder}>Search in books...</Text>
+          <View style={styles.searchIconBubble}>
+            <Ionicons name="search" size={19} color="#0D3B2E" />
+          </View>
+          <Text style={styles.searchPlaceholder}>Search words in books...</Text>
+          <Ionicons name="arrow-forward" size={18} color="#B78A2F" />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
-          <Text style={styles.welcomeSubtext}>Start your spiritual journey with Islamic literature</Text>
+          <View>
+            <Text style={styles.welcomeKicker}>Assalamu Alaikum</Text>
+            <Text style={styles.welcomeText}>Continue Your Reading</Text>
+            <Text style={styles.welcomeSubtext}>A clean offline reader for your Islamic book collection.</Text>
+          </View>
+          <View style={styles.welcomeIcon}>
+            <Ionicons name="sparkles" size={26} color="#F8D889" />
+          </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="library" size={24} color="#2E7D32" />
+            <View style={styles.sectionIcon}>
+              <Ionicons name="library" size={20} color="#F8D889" />
+            </View>
             <Text style={styles.sectionTitle}>My Library</Text>
           </View>
           
@@ -140,54 +157,75 @@ export default function App() {
             style={styles.booksFolder}
             onPress={() => openBook('sham-e-shabistan-e-raza')}
           >
-            <View style={styles.folderIcon}>
-              <Ionicons name="folder-open" size={48} color="#4CAF50" />
+            <View style={styles.bookHeroTop}>
+              <View style={styles.folderIcon}>
+                <Ionicons name="book" size={34} color="#F8D889" />
+              </View>
+              <View style={styles.bookMeta}>
+                <Text style={styles.folderTitle}>Books Collection</Text>
+                <Text style={styles.folderSubtitle}>Tap to open your saved Islamic book</Text>
+              </View>
+              <Ionicons name="chevron-forward-circle" size={30} color="#F8D889" />
             </View>
-            <Text style={styles.folderTitle}>Books Collection</Text>
-            <Text style={styles.folderSubtitle}>Tap to read your Islamic books</Text>
             
             <View style={styles.booksList}>
               <TouchableOpacity 
                 style={styles.bookItem}
                 onPress={() => openBook('sham-e-shabistan-e-raza')}
               >
-                <Ionicons name="book" size={20} color="#4CAF50" />
-                <Text style={styles.bookName}>Sham-e-Shabistan-e-Raza</Text>
-                <Ionicons name="chevron-forward" size={16} color="#999" />
+                <View style={styles.bookMiniIcon}>
+                  <Ionicons name="reader" size={18} color="#0D3B2E" />
+                </View>
+                <View style={styles.bookNameBlock}>
+                  <Text style={styles.bookName}>Sham-e-Shabistan-e-Raza</Text>
+                  <Text style={styles.bookSubName}>896 pages - Offline</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={17} color="#B78A2F" />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="grid" size={19} color="#F8D889" />
+            </View>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
           <View style={styles.actionGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => setShowImageSearch(true)}
-            >
-              <Ionicons name="image" size={24} color="#2E7D32" />
-              <Text style={styles.actionText}>Image Search</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity style={styles.actionCard}>
-              <Ionicons name="bookmark" size={24} color="#2E7D32" />
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="bookmark" size={22} color="#0D3B2E" />
+              </View>
               <Text style={styles.actionText}>Bookmarks</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionCard}>
-              <Ionicons name="time" size={24} color="#2E7D32" />
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="time" size={22} color="#0D3B2E" />
+              </View>
               <Text style={styles.actionText}>Recent</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={() => setShowImageSearchModal(true)}>
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="scan" size={22} color="#0D3B2E" />
+              </View>
+              <Text style={styles.actionText}>Image Search</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionCard}>
-              <Ionicons name="settings" size={24} color="#2E7D32" />
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="settings" size={22} color="#0D3B2E" />
+              </View>
               <Text style={styles.actionText}>Settings</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.quoteSection}>
+          <Ionicons name="leaf" size={22} color="#F8D889" />
           <Text style={styles.quoteArabic}>وَقُل رَّبِّ زِدْنِي عِلْمًا</Text>
           <Text style={styles.quoteTranslation}>"And say: My Lord, increase me in knowledge"</Text>
           <Text style={styles.quoteReference}>- Quran 20:114</Text>
@@ -203,15 +241,23 @@ export default function App() {
         highlightText={highlightText}
       />
 
+      <ImageSearch
+        visible={showImageSearchModal}
+        onClose={() => setShowImageSearchModal(false)}
+        onSelectPage={goToImageSearchPage}
+      />
+
       <Modal
         visible={showSearchModal}
-        transparent={true}
-        animationType="slide"
+        transparent={false}
+        animationType="none"
         onRequestClose={closeSearch}
+        statusBarTranslucent={false}
       >
         <KeyboardAvoidingView
           style={styles.searchOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
         >
           <View style={styles.searchContainer}>
             <View style={styles.searchHeader}>
@@ -220,7 +266,7 @@ export default function App() {
                 <TextInput
                   ref={searchInputRef}
                   style={styles.searchInput}
-                  placeholder="لفظ تلاش کریں... (Search word)"
+                  placeholder="Ù„ÙØ¸ ØªÙ„Ø§Ø´ Ú©Ø±ÛŒÚº... (Search word)"
                   placeholderTextColor="#aaa"
                   value={searchText}
                   onChangeText={handleSearch}
@@ -241,8 +287,8 @@ export default function App() {
             {searchText.trim().length > 0 && (
               <Text style={styles.resultsCount}>
                 {searchResults.length === 0
-                  ? 'کوئی نتیجہ نہیں ملا'
-                  : `${searchResults.length} صفحات ملے${searchResults.length === 50 ? ' (پہلے 50)' : ''}`}
+                  ? 'Ú©ÙˆØ¦ÛŒ Ù†ØªÛŒØ¬Û Ù†ÛÛŒÚº Ù…Ù„Ø§'
+                  : `${searchResults.length} ØµÙØ­Ø§Øª Ù…Ù„Û’${searchResults.length === 50 ? ' (Ù¾ÛÙ„Û’ 50)' : ''}`}
               </Text>
             )}
 
@@ -270,8 +316,8 @@ export default function App() {
                 searchText.trim().length === 0 ? (
                   <View style={styles.searchHint}>
                     <Ionicons name="search-outline" size={48} color="#ddd" />
-                    <Text style={styles.searchHintText}>کوئی لفظ لکھیں</Text>
-                    <Text style={styles.searchHintSub}>جس صفحے پر وہ لفظ ہوگا وہاں چلے جائیں گے</Text>
+                    <Text style={styles.searchHintText}>Ú©ÙˆØ¦ÛŒ Ù„ÙØ¸ Ù„Ú©Ú¾ÛŒÚº</Text>
+                    <Text style={styles.searchHintSub}>Ø¬Ø³ ØµÙØ­Û’ Ù¾Ø± ÙˆÛ Ù„ÙØ¸ ÛÙˆÚ¯Ø§ ÙˆÛØ§Úº Ú†Ù„Û’ Ø¬Ø§Ø¦ÛŒÚº Ú¯Û’</Text>
                   </View>
                 ) : null
               }
@@ -280,11 +326,6 @@ export default function App() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <ImageSearch 
-        visible={showImageSearch}
-        onClose={() => setShowImageSearch(false)}
-        onSelectPage={handleImageSearchSelect}
-      />
     </View>
   );
 }
@@ -292,326 +333,450 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    paddingTop: 40,
+    backgroundColor: '#F5F0E6',
+    paddingTop: 36,
   },
   header: {
-    backgroundColor: '#1B5E20',
-    paddingVertical: 20,
+    backgroundColor: '#071B14',
+    marginHorizontal: 14,
+    marginTop: 8,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    paddingTop: 22,
+    paddingBottom: 24,
+    borderRadius: 30,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#071B14',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.30,
+    shadowRadius: 16,
+  },
+  headerGlow: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: '#174C3B',
+    right: -54,
+    top: -70,
+    opacity: 0.75,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingLeft: 10,
-    paddingTop: 10,
+    marginBottom: 18,
+  },
+  logoMark: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: '#123B2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(248,216,137,0.35)',
+    marginRight: 14,
+  },
+  headerTextBlock: {
+    flex: 1,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    color: '#F8D889',
+    fontWeight: '800',
+    marginBottom: 3,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: 12,
-    letterSpacing: 0.5,
+    fontSize: 31,
+    fontWeight: '900',
+    color: '#FFF8E7',
+    letterSpacing: 0.2,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#C8E6C9',
+    fontSize: 19,
+    color: '#F8D889',
     textAlign: 'center',
     fontFamily: 'serif',
-    fontWeight: '500',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  headerCaption: {
+    color: '#D8E7DD',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   searchBarContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    gap: 10,
-    backgroundColor: '#fff',
-    elevation: 2,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   searchButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F7F0',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 28,
-    elevation: 4,
-    shadowColor: '#1B5E20',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#1B5E20',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 22,
+    elevation: 8,
+    shadowColor: '#0D3B2E',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E7D8B3',
+  },
+  searchIconBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#EEF6EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   searchPlaceholder: {
-    marginLeft: 10,
-    color: '#1B5E20',
-    fontSize: 16,
-    fontWeight: '500',
+    flex: 1,
+    color: '#173D31',
+    fontSize: 15,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
   welcomeSection: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 20,
-    marginTop: 20,
-    marginBottom: 20,
-    elevation: 6,
-    shadowColor: '#1B5E20',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderLeftWidth: 6,
-    borderLeftColor: '#1B5E20',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 28,
+    marginTop: 12,
+    marginBottom: 22,
+    elevation: 7,
+    shadowColor: '#123B2E',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EFE5CC',
+  },
+  welcomeKicker: {
+    fontSize: 12,
+    color: '#B78A2F',
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   welcomeText: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1B5E20',
-    marginBottom: 8,
+    fontSize: 23,
+    fontWeight: '900',
+    color: '#0D3B2E',
+    marginBottom: 6,
   },
   welcomeSubtext: {
-    fontSize: 16,
-    color: '#555',
-    lineHeight: 24,
+    maxWidth: 235,
+    fontSize: 14,
+    color: '#6A746D',
+    lineHeight: 21,
+    fontWeight: '500',
+  },
+  welcomeIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: '#0D3B2E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   section: {
-    marginBottom: 28,
+    marginBottom: 26,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 13,
+  },
+  sectionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 13,
+    backgroundColor: '#0D3B2E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1B5E20',
-    marginLeft: 10,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0D3B2E',
   },
   booksFolder: {
-    backgroundColor: '#fff',
-    padding: 32,
-    borderRadius: 20,
+    backgroundColor: '#0D3B2E',
+    padding: 18,
+    borderRadius: 30,
+    elevation: 10,
+    shadowColor: '#071B14',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(248,216,137,0.25)',
+  },
+  bookHeroTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#1B5E20',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderWidth: 2,
-    borderColor: '#1B5E20',
-    borderStyle: 'dashed',
   },
   folderIcon: {
-    marginBottom: 16,
+    width: 62,
+    height: 62,
+    borderRadius: 22,
+    backgroundColor: '#174C3B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  bookMeta: {
+    flex: 1,
   },
   folderTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1B5E20',
-    marginBottom: 6,
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#FFF8E7',
+    marginBottom: 4,
   },
   folderSubtitle: {
-    fontSize: 15,
-    color: '#777',
-    marginBottom: 24,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  actionCard: {
-    backgroundColor: '#fff',
-    width: '48%',
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 5,
-    shadowColor: '#1B5E20',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    borderTopWidth: 3,
-    borderTopColor: '#1B5E20',
-  },
-  actionText: {
-    fontSize: 15,
-    color: '#1B5E20',
-    fontWeight: '700',
-    marginTop: 10,
-  },
-  quoteSection: {
-    backgroundColor: '#E8F5E9',
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 30,
-    alignItems: 'center',
-    borderLeftWidth: 6,
-    borderLeftColor: '#1B5E20',
-    elevation: 4,
-    shadowColor: '#1B5E20',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-  },
-  quoteArabic: {
-    fontSize: 24,
-    color: '#1B5E20',
-    fontFamily: 'serif',
-    textAlign: 'center',
-    marginBottom: 12,
-    fontWeight: '700',
-  },
-  quoteTranslation: {
-    fontSize: 17,
-    color: '#2E7D32',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  quoteReference: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    fontWeight: '600',
+    fontSize: 13,
+    color: '#C8D9CF',
+    lineHeight: 19,
   },
   booksList: {
-    marginTop: 16,
+    marginTop: 18,
     width: '100%',
   },
   bookItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F8F6',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1B5E20',
+    backgroundColor: '#FFF8E7',
+    padding: 13,
+    borderRadius: 20,
+  },
+  bookMiniIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#E9F2E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bookNameBlock: {
+    flex: 1,
   },
   bookName: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1B5E20',
-    fontWeight: '600',
-    marginLeft: 12,
+    fontSize: 15,
+    color: '#0D3B2E',
+    fontWeight: '900',
   },
-  searchOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)' 
+  bookSubName: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#7B7A68',
+    fontWeight: '600',
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 17,
+    paddingHorizontal: 10,
+    borderRadius: 22,
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#0D3B2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EFE5CC',
+  },
+  actionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF6EF',
+    marginBottom: 9,
+  },
+  actionText: {
+    fontSize: 12,
+    color: '#0D3B2E',
+    fontWeight: '900',
+  },
+  quoteSection: {
+    backgroundColor: '#071B14',
+    padding: 24,
+    borderRadius: 30,
+    marginBottom: 34,
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#071B14',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+  },
+  quoteArabic: {
+    fontSize: 25,
+    color: '#F8D889',
+    fontFamily: 'serif',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 12,
+    fontWeight: '800',
+  },
+  quoteTranslation: {
+    fontSize: 15,
+    color: '#EAF3EA',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  quoteReference: {
+    fontSize: 13,
+    color: '#B9CABE',
+    textAlign: 'center',
+    fontWeight: '800',
+  },
+  searchOverlay: {
+    flex: 1,
+    backgroundColor: '#F5F0E6',
+    paddingTop: 40,
   },
   searchContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    marginTop: 60,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#F5F0E6',
   },
   searchHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: '#071B14',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    elevation: 8,
   },
   searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    backgroundColor: '#FFF8E7',
+    borderRadius: 18,
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E7D8B3',
   },
-  searchIcon: { 
-    marginRight: 6 
+  searchIcon: {
+    marginRight: 6,
   },
-  searchInput: { 
-    flex: 1, 
-    fontSize: 16, 
-    color: '#333' 
+  searchInput: {
+    flex: 1,
+    minHeight: 38,
+    fontSize: 16,
+    color: '#0D3B2E',
+    fontWeight: '700',
   },
-  cancelBtn: { 
-    marginLeft: 10, 
-    paddingVertical: 6, 
-    paddingHorizontal: 4 
+  cancelBtn: {
+    marginLeft: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
   },
-  cancelText: { 
-    fontSize: 15, 
-    color: '#1B5E20', 
-    fontWeight: '600' 
+  cancelText: {
+    fontSize: 14,
+    color: '#F8D889',
+    fontWeight: '900',
   },
   resultsCount: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
     fontSize: 13,
-    color: '#888',
+    color: '#6A746D',
     textAlign: 'center',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 9,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    fontWeight: '800',
   },
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 18,
+    elevation: 3,
+    shadowColor: '#0D3B2E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EFE5CC',
   },
   resultPageBadge: {
-    backgroundColor: '#1B5E20',
-    borderRadius: 8,
-    minWidth: 44,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    backgroundColor: '#0D3B2E',
+    borderRadius: 14,
+    minWidth: 48,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
     alignItems: 'center',
     marginRight: 12,
   },
-  resultPageNum: { 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 14 
+  resultPageNum: {
+    color: '#F8D889',
+    fontWeight: '900',
+    fontSize: 14,
   },
-  resultTextContainer: { 
-    flex: 1 
+  resultTextContainer: {
+    flex: 1,
   },
-  resultSnippet: { 
-    fontSize: 14, 
-    color: '#444', 
-    textAlign: 'right', 
-    lineHeight: 20 
+  resultSnippet: {
+    fontSize: 14,
+    color: '#34473F',
+    textAlign: 'right',
+    lineHeight: 21,
+    fontWeight: '500',
   },
-  searchHint: { 
-    alignItems: 'center', 
-    marginTop: 60, 
-    paddingHorizontal: 40 
+  searchHint: {
+    alignItems: 'center',
+    marginTop: 70,
+    paddingHorizontal: 40,
   },
-  searchHintText: { 
-    fontSize: 18, 
-    color: '#aaa', 
-    marginTop: 16, 
-    fontWeight: '600' 
+  searchHintText: {
+    fontSize: 20,
+    color: '#0D3B2E',
+    marginTop: 18,
+    fontWeight: '900',
   },
-  searchHintSub: { 
-    fontSize: 14, 
-    color: '#ccc', 
-    marginTop: 8, 
-    textAlign: 'center', 
-    lineHeight: 20 
+  searchHintSub: {
+    fontSize: 14,
+    color: '#78867D',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 21,
+    fontWeight: '600',
   },
 });
